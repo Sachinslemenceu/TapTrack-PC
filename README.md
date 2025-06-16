@@ -61,22 +61,22 @@
 Mobile Device 📱  -->  [UDP Packet]  -->  TapTrack PC 🖥️
                                          ↳ Extracts IP
                                          ↳ Displays on UI
+
 ---
 
-
-### 🧠 Contribution
+## 🧠 Contribution
 
 Currently an open-source project, but contributors are welcome to fork the repo and commit changes.
 
 ---
 
-### 👨‍💻 Author
+## 👨‍💻 Author
 
 Built with ❤️ by **Sachin Pradeep Singh**  
 
 ---
 
-### 📄 License
+## 📄 License
 
 MIT License
 
