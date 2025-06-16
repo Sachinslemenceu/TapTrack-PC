@@ -2,6 +2,10 @@
 
 **TapTrack PC** is a Kotlin Multiplatform Desktop application built using **JetBrains Compose for Desktop**. It acts as a PC-side companion app for the **TapTrack** ecosystem — designed to establish communication with mobile devices over **UDP**, track incoming device connections, and display interactive data in a responsive, modern UI.
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/eaa1a16f-ae68-4285-b78e-0b9874a411d6" width="40%" />
+  <img src="https://github.com/user-attachments/assets/ff599fe6-e1d5-482b-81e4-ca338f636fc9" width="40%" />
+</p>
 ---
 
 ## 🛠️ Key Features
