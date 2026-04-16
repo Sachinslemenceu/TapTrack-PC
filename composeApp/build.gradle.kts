@@ -53,6 +53,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.slemenceu.taptrackpc"
             packageVersion = "1.0.0"
+            name = "TapTrackPC"
         }
     }
 }

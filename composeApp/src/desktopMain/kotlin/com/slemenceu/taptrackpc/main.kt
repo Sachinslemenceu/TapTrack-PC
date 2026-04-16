@@ -1,10 +1,12 @@
 package com.slemenceu.taptrackpc
 
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import initKoin
+import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
     initKoin()
@@ -14,6 +16,7 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         state = windowState,
         title = "TapTrack",
+        icon = painterResource("icon_img.png")
     ) {
         App()
     }
