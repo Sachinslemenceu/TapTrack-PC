@@ -1,240 +1,167 @@
+
+
 package com.slemenceu.taptrackpc.taptrack.data.services
 
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import com.slemenceu.taptrackpc.taptrack.domain.models.ServerConfig
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.awt.MouseInfo
 import java.awt.Robot
-import java.awt.event.MouseEvent
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetAddress
+import java.awt.event.InputEvent
+import java.io.DataInputStream
+import java.net.*
 
+class ServerService {
+    private val TCP_PORT = 9998
+    private val UDP_PORT = 9999
 
+    private val robot = Robot().apply {
+        autoDelay = 0
+        isAutoWaitForIdle = false
+    }
 
-class UDPServerService {
-
+    private var isClientConnected = false
     private var trustedClientIp: InetAddress? = null
+    val connectionState = MutableStateFlow("Idle")
 
-    private lateinit var socket: DatagramSocket
+    private var serverJob: Job? = null
 
-    val clientConnected: MutableStateFlow<InetAddress?> = MutableStateFlow(null)
+    fun startServer(passcode: String): ServerConfig {
+        val localIp = getLocalNetworkIp()
 
-    suspend fun startServer(): String {
-        val port = 9999
-        socket = DatagramSocket(port)
-        val robot = Robot()
-        val buffer = ByteArray(9)
-        val passcode = generatePasscode()
-        println("Server started. Pairing code: $passcode")
+        // We store the Job so we can cancel the whole server later
+        serverJob = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            // By making these extension functions, 'isActive' becomes available inside them
+            launch { runTcpControlChannel(passcode) }
+            launch { runUdpMotionChannel() }
+        }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            while (true) {
-                val packet = DatagramPacket(buffer, buffer.size)
-                socket.receive(packet)
-                val result = handlePacket(packet, robot, passcode)
-                if (result != null && trustedClientIp == null) {
-                    trustedClientIp = result
-                    clientConnected.value = result
+        return ServerConfig(ip = localIp, port = TCP_PORT, passcode = passcode)
+    }
+
+    /**
+     * Added 'CoroutineScope.' to make isActive work
+     */
+    private suspend fun CoroutineScope.runTcpControlChannel(passcode: String) {
+        val serverSocket = ServerSocket(TCP_PORT)
+        println("[TCP] Listening on $TCP_PORT")
+
+        // Use 'use' to ensure the server socket closes if the coroutine is cancelled
+        serverSocket.use { server ->
+            while (isActive) {
+                try {
+                    // accept() is blocking, but in Dispatchers.IO it's okay.
+                    // To make it fully cancellable, we can set a timeout or check isActive
+                    val client = server.accept()
+                    client.tcpNoDelay = true
+                    handleTcpClient(client)
+                } catch (e: Exception) {
+                    if (isActive) println("[TCP] Accept Error: ${e.message}")
                 }
             }
         }
-
-        return passcode
     }
-    private suspend fun handlePacket(
-        packet: DatagramPacket,
-        robot: Robot,
-        verifyCode: String,
-    ): InetAddress? {
-        val data = packet.data
-        val commandType = data[0].toInt()
 
-        if (commandType == 99) {
-            val receivedPasscode = bytesToInt(data.sliceArray(1..4)).toString()
-            println("Passcode received: $receivedPasscode")
+    private fun handleTcpClient(client: Socket) {
+        client.use {
+            val inputStream = DataInputStream(it.getInputStream())
+            trustedClientIp = it.inetAddress
+            isClientConnected = true
+            connectionState.value = "Connected: ${it.inetAddress.hostAddress}"
 
-            return if (receivedPasscode == verifyCode) {
-                sendConfirmation(socket, packet, true)
-                println("Client connected: ${packet.address.hostAddress}")
-                packet.address
-            } else {
-                sendConfirmation(socket, packet, false)
-                println("Wrong passcode attempt from ${packet.address}")
-                null
+            try {
+                // Command Loop - stays here as long as client is connected
+                while (isClientConnected) {
+                    val command = inputStream.readByte().toInt()
+                    println(command)
+                    when (command) {
+
+                        1 -> { // CLICK
+                            println("[TCP] Received CLICK command")
+                            val modifier = inputStream.readByte().toInt()
+                            val mask = if (modifier == 1) InputEvent.BUTTON3_DOWN_MASK else InputEvent.BUTTON1_DOWN_MASK
+                            robot.mousePress(mask)
+                            robot.mouseRelease(mask)
+                        }
+                        95 -> { // HEARTBEAT PING
+
+                            println("[TCP] Received PING")
+
+                            val pong = byteArrayOf(96)
+
+                            it.getOutputStream().write(pong)
+                            it.getOutputStream().flush()
+                        }
+                        // Add Case 3 (Key) and 4 (Text) here...
+                    }
+                }
+            } catch (e: Exception) {
+                println("[TCP] Connection ended: ${e.message}")
+            } finally {
+                isClientConnected = false
+                trustedClientIp = null
+                connectionState.value = "Disconnected"
             }
         }
+    }
 
-        if (trustedClientIp == null || packet.address != trustedClientIp) {
-            println("Unauthorized packet from ${packet.address}")
-            return null
-        }
+    /**
+     * Added 'CoroutineScope.' to make isActive work
+     */
+    private fun CoroutineScope.runUdpMotionChannel() {
+        val udpSocket = DatagramSocket(UDP_PORT)
+        val buffer = ByteArray(9)
+        val packet = DatagramPacket(buffer, buffer.size)
 
-        when (commandType) {
-            0 -> moveMouse(robot, data)
-            1 -> click(robot, MouseEvent.BUTTON1_DOWN_MASK)
-            2 -> click(robot, MouseEvent.BUTTON3_DOWN_MASK)
-            3 -> {
-                click(robot, MouseEvent.BUTTON1_DOWN_MASK)
-                delay(100)
-                click(robot, MouseEvent.BUTTON1_DOWN_MASK)
+        udpSocket.use { socket ->
+            println("[UDP] Listening on $UDP_PORT")
+            while (isActive) {
+                try {
+                    socket.receive(packet)
+                    if (!isClientConnected || packet.address != trustedClientIp) continue
+
+                    val command = packet.data[0].toInt()
+
+                    when (command) {
+                        0 -> { // MOVE command
+                            val dx = bytesToInt(packet.data, 1)
+                            val dy = bytesToInt(packet.data, 5)
+                            val current = MouseInfo.getPointerInfo().location
+                            robot.mouseMove(current.x + dx, current.y + dy)
+                        }
+
+                        95 -> { // LATENCY_PING command
+                            // REFLECTION:
+                            // The 'packet' object now contains the Android IP and Port.
+                            // We simply send it back immediately.
+                            socket.send(packet)
+                        }
+                    }
+                } catch (e: Exception) {
+                    if (isActive) println("[UDP] Error: ${e.message}")
+                }
             }
         }
-
-        return trustedClientIp
     }
 
-    private fun moveMouse(robot: Robot, data: ByteArray) {
-        val dx = bytesToInt(data.sliceArray(1..4))
-        val dy = bytesToInt(data.sliceArray(5..8))
-        val current = MouseInfo.getPointerInfo().location
-        robot.mouseMove(current.x + dx, current.y + dy)
+    private fun bytesToInt(bytes: ByteArray, offset: Int): Int {
+        return (bytes[offset].toInt() shl 24) or
+                ((bytes[offset + 1].toInt() and 0xFF) shl 16) or
+                ((bytes[offset + 2].toInt() and 0xFF) shl 8) or
+                (bytes[offset + 3].toInt() and 0xFF)
     }
 
-    private fun click(robot: Robot, mask: Int) {
-        robot.mousePress(mask)
-        robot.mouseRelease(mask)
+    private fun getLocalNetworkIp(): String {
+        return try {
+            DatagramSocket().use { s ->
+                s.connect(InetAddress.getByName("8.8.8.8"), 10002)
+                s.localAddress.hostAddress
+            }
+        } catch (e: Exception) { "127.0.0.1" }
     }
 
-    private fun sendConfirmation(
-        socket: DatagramSocket,
-        packet: DatagramPacket,
-        isValid: Boolean
-    ) {
-        val response = byteArrayOf(if (isValid) 100 else 101)
-        val confirmPacket = DatagramPacket(response, response.size, packet.address, packet.port)
-        socket.send(confirmPacket)
+    fun stopServer() {
+        serverJob?.cancel()
+        isClientConnected = false
     }
-
-    private fun bytesToInt(bytes: ByteArray): Int {
-        return (bytes[0].toInt() shl 24) or
-                ((bytes[1].toInt() and 0xFF) shl 16) or
-                ((bytes[2].toInt() and 0xFF) shl 8) or
-                (bytes[3].toInt() and 0xFF)
-    }
-
-    private fun generatePasscode(): String = (1000..9999).random().toString()
 }
-
-
-
-
-
-
-//object UDPServer{
-//
-//    var mainPasscode = ""
-//    fun runServer() = runBlocking {
-//        val port = 9999
-//        val socket = DatagramSocket(port)
-//        val robot = Robot()
-//        val buffer = ByteArray(9)
-//        var trustedClientIp: InetAddress? = null
-//        val latestPasscode = generatePasscode()
-//        mainPasscode = latestPasscode
-//        println("The paring Code is $latestPasscode")
-//        while (true){
-//            val packet = DatagramPacket(buffer, buffer.size)
-//            socket.receive(packet)
-//            launch(Dispatchers.IO) {
-//                val result = handlePacket(packet,robot, latestPasscode,socket,trustedClientIp)
-//                if (result != null && trustedClientIp == null){
-//                    trustedClientIp = result
-//                }
-//            }
-//        }
-//    }
-//
-//    private suspend fun handlePacket(
-//        packet: DatagramPacket,
-//        robot: Robot,
-//        verifyCode: String,
-//        socket: DatagramSocket,
-//        trustedClientIp: InetAddress?
-//    ): InetAddress? {
-//        val data = packet.data
-//        val commandType = data[0].toInt()
-//        println("$commandType")
-//
-////    To get the passcode from the user
-//        if (commandType == 99) {
-//            val passcode = bytesToInt(data.sliceArray(1..5)).toString()
-//            println("passcode received is : $passcode")
-//            return if (passcode == verifyCode) {
-//                println("Device is connected at ${packet.address.hostAddress}")
-//                sendConfirmation(socket,packet,true)
-//                packet.address
-//            } else {
-//                println("Invalid Login Attempt Ip address isnt valid")
-//                sendConfirmation(socket,packet,false)
-//                null
-//            }
-//        }
-////    to check if the packet is sent by the authorized Ip
-//        if (trustedClientIp == null || packet.address != trustedClientIp){
-//            println("Unauthorized packet has been received")
-//            return null
-//        }
-//        when (commandType){
-//            0 -> {
-//                val dx = bytesToInt(data.sliceArray(1..4))
-//                val dy = bytesToInt(data.sliceArray(5..8))
-//                val currentMouseLocation = MouseInfo.getPointerInfo().location
-//                val newx = currentMouseLocation.x + dx
-//                val newy = currentMouseLocation.y + dy
-//                robot.mouseMove(newx, newy)
-//                println(" mouse is moved")
-//            }
-//            1 -> { // Left click
-//                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK)
-//                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK)
-//                println("Left click")
-//            }
-//
-//            2 -> { // Right click
-//                robot.mousePress(MouseEvent.BUTTON3_DOWN_MASK)
-//                robot.mouseRelease(MouseEvent.BUTTON3_DOWN_MASK)
-//                println("Right click")
-//            }
-//
-//            3 -> { // Double Tap
-//                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK)
-//                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK)
-//                delay(100)
-//                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK)
-//                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK)
-//                println("Doube Tap")
-//            }
-//
-//            else -> println("Unknown command type: $commandType")
-//        }
-//        return trustedClientIp
-//    }
-//
-//    // Converts 4 bytes to Int (big endian)
-//    private fun bytesToInt(bytes: ByteArray): Int {
-//        return (bytes[0].toInt() shl 24) or
-//                ((bytes[1].toInt() and 0xFF) shl 16) or
-//                ((bytes[2].toInt() and 0xFF) shl 8) or
-//                (bytes[3].toInt() and 0xFF)
-//    }
-//
-//    // Generate 4 digit passcode
-//    private fun generatePasscode(): String {
-//        val passcode = (1000..9999).random().toString()
-//        return passcode
-//    }
-//
-//    private fun sendConfirmation(socket: DatagramSocket,packet: DatagramPacket, isValid: Boolean){
-//        val confirmBuffer = ByteArray(1)
-//        confirmBuffer[0] = if (isValid) 100 else 101
-//        val confirmPacket = DatagramPacket(confirmBuffer,confirmBuffer.size,packet.address,packet.port)
-//        socket.send(confirmPacket)
-//    }
-//
-//}

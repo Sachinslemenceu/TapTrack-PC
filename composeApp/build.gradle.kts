@@ -48,12 +48,43 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "com.slemenceu.taptrackpc.MainKt"
+        
+        jvmArgs += listOf(
+            "-Xmx1024m",
+            "-XX:+UseG1GC"
+        )
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.slemenceu.taptrackpc"
+            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            packageName = "TapTrack PC"
             packageVersion = "1.0.0"
-            name = "TapTrackPC"
+            description = "QR Code Tap Track PC Application"
+            copyright = "2026 TapTrack. All rights reserved."
+            vendor = "TapTrack"
+            
+            // Ensure JVM is bundled
+            includeAllModules = true
+            modules(
+                "java.base",
+                "java.desktop",
+                "java.logging",
+                "java.xml",
+                "java.net.http",
+                "jdk.unsupported"
+            )
+            
+            // Windows-specific configuration
+            windows {
+                // Create menu shortcuts
+                menu = true
+                menuGroup = "TapTrack"
+                // Create desktop shortcut
+                shortcut = true
+                // Upgrade code for Windows Installer (enables upgrades)
+                upgradeUuid = "4ff14216-79ad-4efc-a321-d5d63c572aff"
+                dirChooser = true
+                perUserInstall = false
+            }
         }
     }
 }

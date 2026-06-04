@@ -28,9 +28,15 @@ class MainViewModel(
         _uiState.value = _uiState.value.copy(
             isLoading = true
         )
-        val passcode = repository.startServer()
+        val serverConfig = repository.startServer()
+        val deviceName = repository.getDeviceName()
+        val networkName = repository.getNetworkName()
         _uiState.value = _uiState.value.copy(
-            passcode = passcode,
+            passcode = serverConfig.passcode,
+            serverIp = serverConfig.ip,
+            serverPort = serverConfig.port,
+            deviceName = deviceName,
+            networkName = networkName,
             isLoading = false
         )
     }

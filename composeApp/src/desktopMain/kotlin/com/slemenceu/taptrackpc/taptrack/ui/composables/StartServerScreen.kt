@@ -21,10 +21,12 @@ fun StartServerScreen(
     uiState: MainUiState,
 ){
     if (!uiState.isLoading && uiState.passcode != ""){
-        val qrImage = remember { QrCodeGenerator.generateQrCodeImage(uiState.passcode, 100) }
+        // Format QR code content as IP:PORT:PASSCODE
+        val qrContent = "${uiState.serverIp}:${uiState.serverPort}:${uiState.passcode}:${uiState.deviceName}:${uiState.networkName}"
+        val qrImage = remember { QrCodeGenerator.generateQrCodeImage(qrContent, 100) }
         Image(
             bitmap = qrImage,
-            contentDescription = uiState.passcode,
+            contentDescription = qrContent,
             modifier = Modifier
                 .size(150.dp)
         )} else{
