@@ -130,6 +130,12 @@ class ServerService {
                             robot.mouseMove(current.x + dx, current.y + dy)
                         }
 
+                        2 -> {
+                            val scrollAmount = bytesToInt(packet.data, 1)
+
+                            robot.mouseWheel(scrollAmount)
+                        }
+
                         95 -> { // LATENCY_PING command
                             // REFLECTION:
                             // The 'packet' object now contains the Android IP and Port.
