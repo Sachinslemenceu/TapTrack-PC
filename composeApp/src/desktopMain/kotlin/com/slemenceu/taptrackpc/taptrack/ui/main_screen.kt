@@ -53,7 +53,7 @@ fun MainScreen(
         Spacer(Modifier.weight(0.5f))
 
         Image(
-            painter = painterResource("drawable/icon_img.png"),
+            painter = painterResource("drawable/app_icon.png"),
             contentDescription = "Image",
             modifier = Modifier
                 .sizeIn(maxWidth = 100.dp, maxHeight = 100.dp)
@@ -61,10 +61,16 @@ fun MainScreen(
         )
         Text(
             "TapTrack",
-            color = Color(0xFF3587DF),
+            color = Color.White,
             fontSize = 20.sp,
             fontStyle = FontStyle.Italic,
             fontFamily = FontFamily.Cursive,
+            modifier = Modifier.padding(10.dp)
+        )
+        Text(
+            " Connect your mobile device to start controlling your PC ",
+            color = Color(0xFF7D8694),
+            fontSize = 18.sp,
             modifier = Modifier.padding(10.dp)
         )
 
