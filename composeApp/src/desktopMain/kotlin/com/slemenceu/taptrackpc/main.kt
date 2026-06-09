@@ -16,7 +16,7 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         state = windowState,
         title = "TapTrack",
-        icon = painterResource("drawable/icon_img.png")
+        icon = painterResource("drawable/app_icon.png")
     ) {
         App()
     }

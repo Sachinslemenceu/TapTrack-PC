@@ -84,6 +84,12 @@ compose.desktop {
                 upgradeUuid = "4ff14216-79ad-4efc-a321-d5d63c572aff"
                 dirChooser = true
                 perUserInstall = false
+                iconFile.set(
+                    project.file(
+                        "src/desktopMain/composeResources/drawable/app_icon.ico"
+                    )
+                )
+
             }
         }
     }

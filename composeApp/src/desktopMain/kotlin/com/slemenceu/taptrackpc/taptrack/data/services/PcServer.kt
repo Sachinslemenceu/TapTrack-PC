@@ -1,17 +1,17 @@
-
-
 package com.slemenceu.taptrackpc.taptrack.data.services
 
+import com.slemenceu.taptrackpc.taptrack.domain.models.ConnectionStatus
 import com.slemenceu.taptrackpc.taptrack.domain.models.ServerConfig
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.awt.MouseInfo
 import java.awt.Robot
 import java.awt.event.InputEvent
 import java.io.DataInputStream
 import java.net.*
 
-class ServerService {
+class PcServer {
     private val TCP_PORT = 9998
     private val UDP_PORT = 9999
 
@@ -22,16 +22,22 @@ class ServerService {
 
     private var isClientConnected = false
     private var trustedClientIp: InetAddress? = null
-    val connectionState = MutableStateFlow("Idle")
+
+    private val _connectionState = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Idle)
+    val connectionState = _connectionState.asStateFlow()
 
     private var serverJob: Job? = null
+
+    // Optimization: Track mouse position internally to avoid frequent AWT calls
+
+
+    private var currentMouseX: Int = 0
+    private var currentMouseY: Int = 0
 
     fun startServer(passcode: String): ServerConfig {
         val localIp = getLocalNetworkIp()
 
-        // We store the Job so we can cancel the whole server later
         serverJob = CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-            // By making these extension functions, 'isActive' becomes available inside them
             launch { runTcpControlChannel(passcode) }
             launch { runUdpMotionChannel() }
         }
@@ -39,24 +45,20 @@ class ServerService {
         return ServerConfig(ip = localIp, port = TCP_PORT, passcode = passcode)
     }
 
-    /**
-     * Added 'CoroutineScope.' to make isActive work
-     */
     private suspend fun CoroutineScope.runTcpControlChannel(passcode: String) {
         val serverSocket = ServerSocket(TCP_PORT)
-        println("[TCP] Listening on $TCP_PORT")
 
-        // Use 'use' to ensure the server socket closes if the coroutine is cancelled
         serverSocket.use { server ->
             while (isActive) {
                 try {
-                    // accept() is blocking, but in Dispatchers.IO it's okay.
-                    // To make it fully cancellable, we can set a timeout or check isActive
                     val client = server.accept()
                     client.tcpNoDelay = true
                     handleTcpClient(client)
                 } catch (e: Exception) {
-                    if (isActive) println("[TCP] Accept Error: ${e.message}")
+                    if (isActive) {
+                        _connectionState.value = ConnectionStatus.Error("TCP Accept Error: ${e.message}")
+                        println("[TCP] Accept Error: ${e.message}")
+                    }
                 }
             }
         }
@@ -67,84 +69,73 @@ class ServerService {
             val inputStream = DataInputStream(it.getInputStream())
             trustedClientIp = it.inetAddress
             isClientConnected = true
-            connectionState.value = "Connected: ${it.inetAddress.hostAddress}"
+            _connectionState.value = ConnectionStatus.Connected(it.inetAddress.hostAddress)
 
             try {
-                // Command Loop - stays here as long as client is connected
                 while (isClientConnected) {
-                    val command = inputStream.readByte().toInt()
-                    println(command)
-                    when (command) {
-
+                    when (val command = inputStream.readByte().toInt()) {
                         1 -> { // CLICK
-                            println("[TCP] Received CLICK command")
                             val modifier = inputStream.readByte().toInt()
                             val mask = if (modifier == 1) InputEvent.BUTTON3_DOWN_MASK else InputEvent.BUTTON1_DOWN_MASK
                             robot.mousePress(mask)
                             robot.mouseRelease(mask)
                         }
                         95 -> { // HEARTBEAT PING
-
-                            println("[TCP] Received PING")
-
                             val pong = byteArrayOf(96)
-
                             it.getOutputStream().write(pong)
                             it.getOutputStream().flush()
                         }
-                        // Add Case 3 (Key) and 4 (Text) here...
                     }
                 }
             } catch (e: Exception) {
-                println("[TCP] Connection ended: ${e.message}")
+                println("[TCP] Connection ended/error: ${e.message}")
             } finally {
                 isClientConnected = false
                 trustedClientIp = null
-                connectionState.value = "Disconnected"
+                _connectionState.value = ConnectionStatus.Disconnected
             }
         }
     }
 
-    /**
-     * Added 'CoroutineScope.' to make isActive work
-     */
     private fun CoroutineScope.runUdpMotionChannel() {
         val udpSocket = DatagramSocket(UDP_PORT)
         val buffer = ByteArray(9)
         val packet = DatagramPacket(buffer, buffer.size)
 
         udpSocket.use { socket ->
-            println("[UDP] Listening on $UDP_PORT")
+            // Initialize mouse position before the loop
+            val initialLocation = MouseInfo.getPointerInfo().location
+            currentMouseX = initialLocation.x
+            currentMouseY = initialLocation.y
+
             while (isActive) {
                 try {
                     socket.receive(packet)
                     if (!isClientConnected || packet.address != trustedClientIp) continue
 
-                    val command = packet.data[0].toInt()
-
-                    when (command) {
+                    when (packet.data[0].toInt()) {
                         0 -> { // MOVE command
                             val dx = bytesToInt(packet.data, 1)
                             val dy = bytesToInt(packet.data, 5)
-                            val current = MouseInfo.getPointerInfo().location
-                            robot.mouseMove(current.x + dx, current.y + dy)
+                            
+                            // Update and move to the new absolute position
+                            currentMouseX += dx
+                            currentMouseY += dy
+                            robot.mouseMove(currentMouseX, currentMouseY)
                         }
-
-                        2 -> {
+                        2 -> { // SCROLL command
                             val scrollAmount = bytesToInt(packet.data, 1)
-
                             robot.mouseWheel(scrollAmount)
                         }
-
                         95 -> { // LATENCY_PING command
-                            // REFLECTION:
-                            // The 'packet' object now contains the Android IP and Port.
-                            // We simply send it back immediately.
                             socket.send(packet)
                         }
                     }
                 } catch (e: Exception) {
-                    if (isActive) println("[UDP] Error: ${e.message}")
+                    if (isActive) {
+                        _connectionState.value = ConnectionStatus.Error("UDP Error: ${e.message}")
+                        println("[UDP] Error: ${e.message}")
+                    }
                 }
             }
         }
@@ -169,5 +160,6 @@ class ServerService {
     fun stopServer() {
         serverJob?.cancel()
         isClientConnected = false
+        _connectionState.value = ConnectionStatus.Idle
     }
 }

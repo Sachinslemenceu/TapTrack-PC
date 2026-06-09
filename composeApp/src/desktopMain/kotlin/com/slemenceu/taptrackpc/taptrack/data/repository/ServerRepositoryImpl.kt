@@ -1,24 +1,24 @@
 package com.slemenceu.taptrackpc.taptrack.data.repository
 
-import com.slemenceu.taptrackpc.taptrack.data.services.ServerService
+import com.slemenceu.taptrackpc.taptrack.data.services.PcServer
 import com.slemenceu.taptrackpc.taptrack.domain.ServerRepository
+import com.slemenceu.taptrackpc.taptrack.domain.models.ConnectionStatus
 import com.slemenceu.taptrackpc.taptrack.domain.models.ServerConfig
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.InetAddress
 
 class ServerRepositoryImpl(
-    private val serverService: ServerService
+    private val pcServer: PcServer
 ) : ServerRepository {
     override suspend fun startServer(): ServerConfig {
         println("Server is started")
-        return serverService.startServer("1234")
+        return pcServer.startServer("1234")
     }
 
-    override val connectedIp: StateFlow<InetAddress?>
-        get() = InetAddress.getByName("1.2.2.") as StateFlow<InetAddress?>
+    override val connectionState: StateFlow<ConnectionStatus>
+        get() = pcServer.connectionState
 
     override fun getDeviceName(): String {
         return try {

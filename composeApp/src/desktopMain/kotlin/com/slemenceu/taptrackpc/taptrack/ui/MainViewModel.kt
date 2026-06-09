@@ -3,11 +3,10 @@ package com.slemenceu.taptrackpc.taptrack.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slemenceu.taptrackpc.taptrack.domain.ServerRepository
+import com.slemenceu.taptrackpc.taptrack.domain.models.ConnectionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.net.InetAddress
 
 class MainViewModel(
     private val repository: ServerRepository
@@ -42,14 +41,10 @@ class MainViewModel(
     }
     init {
         viewModelScope.launch {
-            repository.connectedIp.collect { ip ->
-                ip?.let {
-                    val ipAddress = ip.hostAddress.toString()
-                    _uiState.value = _uiState.value.copy(
-                        ipAddress = ipAddress,
-                        isConnected = true
-                    )
-                }
+            repository.connectionState.collect { connectionStatus ->
+                _uiState.value = _uiState.value.copy(
+                    connectionStatus = connectionStatus
+                )
             }
         }
     }

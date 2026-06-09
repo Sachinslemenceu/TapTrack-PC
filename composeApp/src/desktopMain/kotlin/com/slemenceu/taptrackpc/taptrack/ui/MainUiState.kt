@@ -1,9 +1,10 @@
 package com.slemenceu.taptrackpc.taptrack.ui
 
+import com.slemenceu.taptrackpc.taptrack.domain.models.ConnectionStatus
+
 data class MainUiState(
-    val isConnected: Boolean = false,
+    val connectionStatus: ConnectionStatus = ConnectionStatus.Idle,
     val isLoading: Boolean = false,
-    val ipAddress : String = "",
     val passcode: String = "",
     val serverIp: String = "",
     val serverPort: Int = 0,

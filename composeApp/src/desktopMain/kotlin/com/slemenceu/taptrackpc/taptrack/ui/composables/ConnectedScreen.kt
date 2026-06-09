@@ -17,19 +17,14 @@ fun ConnectedScreen(
     uiState: MainUiState
 ){
     Image(
-        painter = painterResource("drawable/network.png"),
+        painter = painterResource("drawable/connected_icon.png"),
         contentDescription = "Connected logo",
         modifier = Modifier
             .size(150.dp)
     )
     Text(
         "Connected",
-        color = Color.Green,
+        color = Color(0xFF16E0A5),
         modifier = Modifier.padding(10.dp),
     )
-    Text(
-        text = "The Connected Ip is : ${uiState.ipAddress}",
-        color = Color.Blue
-    )
-
 }

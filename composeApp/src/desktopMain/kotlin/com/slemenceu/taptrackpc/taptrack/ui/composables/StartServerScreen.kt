@@ -36,6 +36,7 @@ import com.slemenceu.taptrackpc.taptrack.ui.MainUiState
 @Composable
 fun StartServerScreen(
     uiState: MainUiState,
+    modifier: Modifier = Modifier
 ) {
     if (!uiState.isLoading && uiState.passcode != "") {
         // Format QR code content as IP:PORT:PASSCODE
@@ -43,7 +44,7 @@ fun StartServerScreen(
             "${uiState.serverIp}:${uiState.serverPort}:${uiState.passcode}:${uiState.deviceName}:${uiState.networkName}"
         val qrImage = remember { QrCodeGenerator.generateQrCodeImage(qrContent, 100) }
         Row(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -81,7 +82,7 @@ fun StartServerScreen(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .fillMaxHeight()
+                    .height(300.dp)
             ) {
                 VerticalDivider(
                     color = Color(0xFF162338),

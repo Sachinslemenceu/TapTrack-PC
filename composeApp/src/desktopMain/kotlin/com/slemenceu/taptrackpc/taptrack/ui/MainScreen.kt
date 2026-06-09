@@ -4,28 +4,22 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slemenceu.taptrackpc.taptrack.data.util.QrCodeGenerator
+import com.slemenceu.taptrackpc.taptrack.domain.models.ConnectionStatus
 import com.slemenceu.taptrackpc.taptrack.ui.composables.ConnectedScreen
 import com.slemenceu.taptrackpc.taptrack.ui.composables.StartServerScreen
 
@@ -36,7 +30,8 @@ fun MainScreen(
     onEvent: (MainUiEvent) -> Unit
 ){
 
-    val text = if (uiState.isConnected) "Connected to the TapTrack app minimize the window and enjoy."
+    val isConnected = uiState.connectionStatus is ConnectionStatus.Connected
+    val text = if (isConnected) "Connected to the TapTrack app minimize the window and enjoy."
     else "Scan the above Qr code via app to connect the Pc to the TapTrack App"
 
     LaunchedEffect(Unit){
@@ -65,19 +60,20 @@ fun MainScreen(
             fontSize = 20.sp,
             fontStyle = FontStyle.Italic,
             fontFamily = FontFamily.Cursive,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier.padding(5.dp)
         )
         Text(
             " Connect your mobile device to start controlling your PC ",
             color = Color(0xFF7D8694),
             fontSize = 18.sp,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier.padding(5.dp)
         )
 
         Spacer(Modifier.weight(1f))
-        if (!uiState.isConnected){
+        if (!isConnected){
             StartServerScreen(
-                uiState = uiState
+                uiState = uiState,
+                modifier = Modifier
             )
         } else{
             ConnectedScreen(
@@ -88,7 +84,7 @@ fun MainScreen(
 
         Text(
             text = text,
-            color = Color.Black,
+            color = Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.Thin,
             modifier = Modifier.padding(10.dp)
