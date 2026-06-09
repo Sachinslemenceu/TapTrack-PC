@@ -157,7 +157,7 @@ git clone https://github.com/Sachinslemenceu/TapTrack-PC
 Build and run the desktop application using Gradle:
 
 ```bash
-./gradlew run
+.\gradlew :composeApp:run
 ```
 
 Ensure the Android client and desktop application are connected to the same local network.
