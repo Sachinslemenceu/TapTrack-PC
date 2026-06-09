@@ -1,83 +1,240 @@
-# 🚀 TapTrack PC
+# TapTrack PC
 
-**TapTrack PC** is a Kotlin Multiplatform Desktop application built using **JetBrains Compose for Desktop**. It acts as a PC-side companion app for the **TapTrack** ecosystem — designed to establish communication with mobile devices over **UDP**, track incoming device connections, and display interactive data in a responsive, modern UI.
+A desktop companion application for the TapTrack ecosystem, responsible for device discovery, connection management, and real-time communication with Android clients over a local network.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/eaa1a16f-ae68-4285-b78e-0b9874a411d6" width="40%" />
-  <img src="https://github.com/user-attachments/assets/ff599fe6-e1d5-482b-81e4-ca338f636fc9" width="40%" />
-</p>
----
+Built using Kotlin Multiplatform and Compose for Desktop, TapTrack PC acts as the communication layer between mobile devices and native desktop input controls.
 
-## 🛠️ Key Features
+**Version:** 1.1.0
 
-- ✅ **Kotlin Multiplatform Desktop (KMP Desktop-only)**
-- ✅ **Jetpack Compose for Desktop UI**
-- ✅ **Custom UDP Server Implementation**
-- ✅ **Real-time client IP discovery**
-- ✅ **Reactive UI with StateFlow and CoroutineScope**
-- ✅ **MVVM Architecture + DI-ready structure using Koin**
-- ✅ **Multithreaded UDP listener with structured concurrency**
-- ✅ **Clean modular codebase with separation of concerns**
+<img width="1536" height="1024" alt="taptrack_pc_hero" src="https://github.com/user-attachments/assets/7954808d-af1b-4961-bc96-529360ef3e42" />
+
 
 ---
 
-## ⚙️ Tech Stack
+## Overview
 
-| Layer         | Library/Tool                  |
-|---------------|-------------------------------|
-| UI            | JetBrains Compose Multiplatform |
-| Language      | Kotlin (JVM target)            |
-| State Mgt.    | `MutableStateFlow`, `StateFlow`, `rememberSaveable` |
-| Networking    | Java/Kotlin `DatagramSocket` (UDP), custom socket abstraction |
-| Coroutines    | Kotlinx Coroutines             |
-| Logging       | println debug (expandable with Timber or Ktor log) |
-| Structure     | MVVM (Model-View-ViewModel)    |
-| Build Tool    | Gradle (Kotlin DSL)            |
+TapTrack PC serves as the desktop-side communication server for the TapTrack platform.
 
----
+The application listens for incoming connections from Android devices, manages active sessions, processes incoming UDP packets, and translates user interactions into desktop control events.
 
-## ⚡ Optimization Highlights
+The system was designed with a focus on:
 
-### 🧠 Smart Resource Management
-- **Custom `UDPServerService` with safe socket lifecycle**:
-  - Ensures socket is opened and closed gracefully.
-  - Prevents port lock issues and exceptions on reconnection.
-
-### 🧵 Coroutine Best Practices
-- All network operations run on `Dispatchers.IO`.
-- Real-time `StateFlow` for emitting client connection data to the UI.
-- ViewModel safely collects flow using lifecycle-aware coroutine scope.
-
-### 🧼 Clean Code Structure
-- Separation between **services**, **data**, and **UI layers**.
-- Optimized `remember` and `rememberSaveable` usage to preserve UI state across recompositions.
+* Low-latency communication
+* Reliable connection management
+* Responsive desktop performance
+* Scalable architecture
+* Real-time device interaction
 
 ---
 
-## 🔌 How It Works
+## System Architecture
 
-### Network Flow (Simplified)
 ```text
-Mobile Device 📱  -->  [UDP Packet]  -->  TapTrack PC 🖥️
-                                         ↳ Extracts IP
-                                         ↳ Displays on UI
+┌───────────────────────┐
+│  Android Application  │
+└───────────┬───────────┘
+            │
+            │ UDP Communication
+            ▼
+┌───────────────────────┐
+│      TapTrack PC      │
+│   Desktop Server      │
+└───────────┬───────────┘
+            │
+            ▼
+┌───────────────────────┐
+│ Native Desktop Events │
+└───────────────────────┘
+```
 
 ---
 
-## 🧠 Contribution
+## Key Features
 
-Currently an open-source project, but contributors are welcome to fork the repo and commit changes.
+### Device Discovery
+
+Receives and identifies incoming client connections across a local network.
+
+### Real-Time Communication
+
+Processes UDP packets with minimal overhead to support responsive remote interaction.
+
+### Connection Management
+
+Maintains active device sessions and handles connection lifecycle events safely.
+
+### Reactive Desktop Interface
+
+Displays live connection information and application state using a modern desktop UI.
+
+### Multithreaded Networking
+
+Network operations run independently from the UI to ensure smooth user interaction and stable performance.
+
+### Lifecycle-Aware Resource Management
+
+Sockets and networking resources are created and disposed of safely to prevent connection conflicts and resource leaks.
 
 ---
 
-## 👨‍💻 Author
+## Technical Highlights
 
-Built with ❤️ by **Sachin Pradeep Singh**  
+### Desktop Development
+
+* Kotlin Multiplatform
+* Compose for Desktop
+* JVM Desktop Target
+
+### Networking
+
+* UDP Socket Communication
+* Datagram Packet Processing
+* Custom Communication Protocol
+* Client Discovery
+* Connection Tracking
+
+### State Management
+
+* Kotlin Coroutines
+* StateFlow
+* Reactive UI Updates
+
+### Architecture
+
+* MVVM Architecture
+* Dependency Injection Ready
+* Separation of Concerns
+* Modular Design
 
 ---
 
-## 📄 License
+## How It Works
 
-MIT License
+```text
+Android Device
+        │
+        ▼
+QR Pairing
+        │
+        ▼
+UDP Connection
+        │
+        ▼
+TapTrack PC Server
+        │
+        ▼
+Packet Processing
+        │
+        ▼
+Desktop Input Events
+```
 
 ---
+
+## Performance Considerations
+
+TapTrack PC was designed with responsiveness as a primary objective.
+
+Key optimizations include:
+
+* Lightweight UDP communication
+* Non-blocking network operations
+* Coroutine-based concurrency
+* Reactive state management
+* Safe socket lifecycle handling
+* Minimal packet processing overhead
+
+---
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Sachinslemenceu/TapTrack-PC
+```
+
+Build and run the desktop application using Gradle:
+
+```bash
+./gradlew run
+```
+
+Ensure the Android client and desktop application are connected to the same local network.
+
+---
+
+## Companion Android Application
+
+TapTrack PC works together with the Android client application.
+
+Android Repository:
+
+https://github.com/Sachinslemenceu/TapTrack
+
+The Android application provides touchpad functionality and communicates with TapTrack PC over UDP.
+
+---
+
+## Current Capabilities
+
+Version 1.1.0 currently supports:
+
+* Client Discovery
+* Device Pairing
+* UDP Communication
+* Connection Monitoring
+* Real-Time Packet Processing
+* Desktop Session Management
+
+---
+
+## Roadmap
+
+Future improvements under consideration:
+
+* Multi-Device Support
+* Device Management Dashboard
+* Enhanced Connection Diagnostics
+* Secure Session Authentication
+* Custom Input Profiles
+* Performance Monitoring Tools
+
+---
+
+## Why TapTrack PC?
+
+TapTrack PC demonstrates practical experience in:
+
+* Desktop Application Development
+* Real-Time Networking
+* UDP Communication Systems
+* Kotlin Multiplatform
+* Concurrent Programming
+* Software Architecture Design
+* End-to-End Product Development
+
+---
+
+## Contributing
+
+Contributions are welcome.
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Open a pull request
+
+---
+
+## Author
+
+Sachin Pradeep Singh
+
+Software Engineer focused on Android Development, Real-Time Systems, Product Engineering, and Cross-Platform Applications.
+
+---
+
+## License
+
+This project is licensed under the MIT License.
